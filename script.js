@@ -1,56 +1,82 @@
  
- // Обработка добавления
- document.querySelector('form').addEventListener('submit', function(event) {
-    // Отмена отправки формы
-    event.preventDefault();
 
-    // Получение данных из полей формы
-    let name = document.querySelector('#name').value;
-    let phone = document.querySelector('#phone').value;
 
-    // Отправка данных на сервер
-    $.ajax({
-        url: './routerContacts.php',    // путь к роутеру
-        type: 'GET',
-        data:{
-            action: 'createContact',
-            name: name,
-            phone: phone
-        },
-        success: function(response) {
-            // Распарс данных
-            response = JSON.parse(response)
-            
-            // Если пришел текст ошибки
-            if(response.errorText != undefined || response.errorText != null){
-                alert(response.errorText);
+class ContactsOperator{
+    constructor(){
+        this.url = './routerContacts.php'      // Место роутера
+    }
 
-            // Если текста ошибки не пришло
-            }else{
-                // Запрашиваем список контактов и обнавляем список
-                getContacts();
-                // Очищаем поля
-                document.querySelector('#name').value = '';
-                document.querySelector('#phone').value = '';
+    // Делает запросы на сервер. data - данные для сервера, callback - функция обрабатывающая ответ сервера
+    ajax(data, callback){
+        $.ajax({
+            url: this.url,    // путь к роутеру
+            type: 'GET',
+            data: data,
+            success: function(response){
+                callback(response)
             }
+        });
+    }
+
+    // Создает новый контакт. idFotm - id формы создающей контакт
+    createContact(idForm){
+
+        const form = document.getElementById(idForm);    // Получаем форму
+
+        // Слушаем отправку формы
+        form.addEventListener('submit',(event)=>{
+            // Отменяем отправку для исключения обнавления страницы
+            event.preventDefault();
+
+            // Получение данных из полей формы
+            let name = form.querySelector('#name').value;
+            let phone = form.querySelector('#phone').value;
+            
+            // Формируем данные для отправки на сервер
+            const data={
+                action: 'createContact',
+                name: name,
+                phone: phone
+            }
+
+            // Создаем функцию которая выполнится после ответа сервера
+            let responseProcssing = (response)=>{
+                // Распарс данных
+                response = JSON.parse(response)
+                
+                // Если пришел текст ошибки
+                if(response.errorText != undefined || response.errorText != null){
+                    alert(response.errorText);
+
+                // Если текста ошибки не пришло
+                }else{
+                    // Запрашиваем список контактов и обнавляем список
+                    this.getContacts('contact-list');
+                    // Очищаем поля
+                    form.querySelector('#name').value = '';
+                    form.querySelector('#phone').value = '';
+                }
+            }
+
+            // Делаем ajax запрос
+            this.ajax(data,responseProcssing);
+        })
+        
+    }
+
+    // Получает все контакты. idlist - id ul куда надо поместить данные
+    getContacts(idList){
+        
+        // Формируем данные для запроса
+        let data = {
+            action: 'getContacts'
         }
-    });
-});
-
-
-// Получение всех контактов
-function getContacts(){
-    $.ajax({
-        url: './routerContacts.php',    // путь к роутеру
-        type: 'GET',
-        data:{
-            action: 'getContacts',
-        },
-        // Ответ сервера
-        success: function(response) {
+        
+        // Создаем функцию обрабатывающую ответ сервера
+        let responseProcssing = (response)=>{
 
             let data = JSON.parse(response);                    // Распарс ответа
-            let ul = document.getElementById('contact-list');   // Ссылка на список контактов
+            let ul = document.getElementById(idList);           // Ссылка на список контактов
             
             // Очищаем содержимое списка
             ul.innerHTML = '';                                  
@@ -65,7 +91,7 @@ function getContacts(){
                 btnDelete.innerHTML = 'X';
                 // Устанавливаем функцию клика по кнопке
                 btnDelete.onclick = ()=>{
-                    deleteContact(element.id)   // Отправляет на сервер id элемента который надо удалить
+                    this.deleteContact(element.id)   // Отправляет на сервер id элемента который надо удалить
                 }
 
                 // Формируем эелемент списка
@@ -76,24 +102,23 @@ function getContacts(){
                 ul.appendChild(li);
             });
         }
-    });
-}
 
+        // Делаем ajax запрос
+        this.ajax(data, responseProcssing);
+    }
 
-// Обработка удаления
-function deleteContact(id){
-    $.ajax({
-        url: './routerContacts.php',    // путь к роутеру
-        type: 'GET',
-        data:{
+    // Удаляет запись. id - id контакта который надо удалить
+    deleteContact(id){
+        
+        // Формируем данные для передачи в jax
+        let data = {
             action: 'deleteContact',
             id: id
-        },
-        success: function(response) {
-            // Запрашиваем список контактов и обнавляем список
-            getContacts()
         }
-    });
+        
+        this.ajax(data, ()=>this.getContacts('contact-list'))
+    }
 }
 
-
+// Создаем экземпляр
+let contacts = new ContactsOperator;
